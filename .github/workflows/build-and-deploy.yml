@@ -6,6 +6,7 @@ on:
     tags: [ "v*" ]
   workflow_dispatch:
 
+# Pull these from your Environment secrets at runtime (see "environment:" below)
 env:
   DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_REPO }}
   AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -16,11 +17,17 @@ env:
 
 jobs:
   build-and-push:
-    environment: Docker-ECS-Github-Actions   # 👈 link to your Environment
+    environment: Docker-ECS-Github-Actions   # <- your Environment name
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate Docker Hub secrets
+        run: |
+          test -n "${{ secrets.DOCKERHUB_USERNAME }}" || (echo "Missing DOCKERHUB_USERNAME" && exit 1)
+          test -n "${{ secrets.DOCKERHUB_TOKEN }}" || (echo "Missing DOCKERHUB_TOKEN" && exit 1)
+          test -n "${DOCKERHUB_REPO}" || (echo "Missing DOCKERHUB_REPO" && exit 1)
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -31,6 +38,7 @@ jobs:
       - name: Docker Hub login
         uses: docker/login-action@v3
         with:
+          registry: docker.io
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
@@ -49,7 +57,7 @@ jobs:
             ${{ env.DOCKERHUB_REPO }}:${{ steps.meta.outputs.sha_short }}
 
   deploy:
-    environment: Docker-ECS-Github-Actions   # 👈 same environment
+    environment: Docker-ECS-Github-Actions   # <- same Environment, so secrets are available
     runs-on: ubuntu-latest
     needs: build-and-push
     steps:
@@ -63,7 +71,28 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Render new ECS task definition
+      - name: Get AWS Account ID
+        id: acct
+        run: |
+          echo "ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_ENV
+
+      - name: Patch ecs-taskdef.base.json -> ecs-taskdef.json
+        run: |
+          jq --arg fam "$ECS_TASK_FAMILY" \
+             --arg reg "$AWS_REGION" \
+             --arg acc "$ACCOUNT_ID" \
+             --arg name "$CONTAINER_NAME" \
+             '.family=$fam
+              | .executionRoleArn="arn:aws:iam::\($acc):role/ecsTaskExecutionRole"
+              | .containerDefinitions[0].name=$name
+              | .containerDefinitions[0].logConfiguration.options["awslogs-group"]="/ecs/\($fam)"
+              | .containerDefinitions[0].logConfiguration.options["awslogs-region"]=$reg' \
+            ecs-taskdef.base.json > ecs-taskdef.json
+
+          echo "Rendered taskdef (image will be set in next step):"
+          cat ecs-taskdef.json
+
+      - name: Render new ECS task definition (swap image)
         id: render
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
