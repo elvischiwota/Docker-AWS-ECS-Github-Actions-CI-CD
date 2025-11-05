@@ -82,7 +82,7 @@ a. Build Job  <br>
   🔹 Short SHA (7-character commit hash)<br>
 🔹 Exposes the short tag as an output for the deploy job.<br>
 
-b. Deploy Job
+b. Deploy Job <br>
 🔹 Configures AWS credentials.<br>
 🔹 Fetches your AWS account ID dynamically.<br>
 🔹 Generates and patches an ECS task definition (no static JSON file required).<br>
