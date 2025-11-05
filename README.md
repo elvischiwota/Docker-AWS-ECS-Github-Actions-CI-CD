@@ -31,7 +31,7 @@ e. IAM Execution Role – usually named ecsTaskExecutionRole. <br>
 
 ## Step 1: Set Up Docker Hub
 a. Log in to Docker Hub. <br>
-b. Create a public repository (e.g., yourname/flask-welcome). <br>
+b. Create a public repository for example yourname/flask-welcome <br>
 c. Go to Account Settings → Security → New Access Token. <br>
 d. Save your username and the access token — they’ll be used in GitHub secrets. <br>
 
