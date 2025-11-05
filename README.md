@@ -33,7 +33,7 @@ e. IAM Execution Role – usually named ecsTaskExecutionRole. <br>
 a. Log in to Docker Hub. <br>
 b. Create a public repository for example yourname/flask-welcome <br>
 c. Go to Account Settings → Security → New Access Token. <br>
-d. Save your username and the access token — they’ll be used in GitHub secrets. <br>
+d. Save your username and the access token — they will be used in GitHub secrets. <br>
 
 ## Step 2: Configure GitHub Environment & Secrets
 a. Go to your repository’s Settings → Environments. <br>
